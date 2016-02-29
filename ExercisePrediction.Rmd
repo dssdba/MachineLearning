@@ -1,0 +1,112 @@
+---
+title: "Practical Machine Learning Exercise Prediction Project"
+author: "Rick Hutchison"
+date: "February 22, 2016"
+output: html_document
+---
+
+# Project Summary
+
+### Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here:http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Source Data
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+What you should submit
+
+### Project Goal
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+# Training Set Construction
+
+### Data Loading
+
+The training and test data files were downloaded to a local project directory as part of setting up the local environment for this project.  The usage of the str function raised some conditions with the source data where we will transform missing values via na.strings().
+
+The discovery is commented out to reduce the size of the final project document.  str was used to perform some basic exploratory source data analysis.
+
+```{r}
+trainingSrc = read.csv("C:/temp/Coursera/Class8-MachineLearning/Project/pml-training.csv", na.strings = c("","NA","#DIV/0!"))
+dim(trainingSrc)
+```
+
+We see that we have 19622 rows and 160 columns.  A visual inspection of the source data shows that the first 7 columns are not germaine to our analysis and can be discarded.  There are a large number of NA values in the data.  Let's remove the columns that are 97% or more NA.
+
+```{r}
+trainingSrc <- trainingSrc[,8:160]
+trainingSrc <- trainingSrc[, colSums(is.na(trainingSrc)) < (nrow(trainingSrc) * 0.03)]
+dim(trainingSrc)
+```
+
+This leaves us with the sensor readings and corresponding class (classe) value.
+
+### Splitting the training set
+
+Following the best practice recommendation from the class, we will divide the training data into two sets, 60% training, 40% test,  not to be confused with our quiz test set that we will work with at the end of this project.  For the testing set, we need to remove the classe column.
+
+```{r}
+suppressPackageStartupMessages(library(caret))
+
+trainingPartition <- createDataPartition(trainingSrc$classe, p=0.60, list=FALSE)
+
+trainingSet <- trainingSrc[trainingPartition,]
+testingSet <- trainingSrc[-trainingPartition,]
+
+```
+
+# Modeling using Random Forests
+
+### Build Model
+```{r}
+suppressPackageStartupMessages(library(randomForest))
+suppressPackageStartupMessages(library(e1071))
+set.seed(8675309)
+
+modelRF <- randomForest(classe~., data=trainingSet)
+modelRF
+```
+
+### Test the Model
+
+```{r}
+predictRF <- predict(modelRF, testingSet, type="class")
+confusionMatrix(predictRF, testingSet$classe)
+```
+
+# Modeling using Decision Tree
+
+```{r}
+suppressPackageStartupMessages(library(rpart))
+set.seed(8675309)
+
+modelDT <- rpart(classe~., data=trainingSet)
+predictDT <- predict(modelDT, testingSet, type="class")
+confusionMatrix(predictDT, testingSet$classe)
+```
+
+The decision tree model is not as accurate as the random forests model.
+
+# Course Project Prediction Quiz
+
+Apply the machine learning algorithm to the 20 test cases available in the test data and submit the predictions in appropriate format to the Course Project Prediction Quiz for automated grading.  We will choose the random forests model because it is the more accurate of the two shown above.
+
+### Data loading
+
+Load the test data set, discard the NA columns like we did for the prediction training set.  the last column of the quiz test data set is not the same as the training set.  We need to coerce the data type to character for the predict function to work.
+
+```{r}
+testingSrc <- read.csv("C:/temp/Coursera/Class8-MachineLearning/Project/pml-testing.csv", na.strings = c("","NA","#DIV/0!"))
+testingSrc <- testingSrc[,8:160]
+testingSrc <- testingSrc[, colSums(is.na(testingSrc)) < (nrow(testingSrc) * 0.03)]
+predictRF <- predict(modelRF, newdata=testingSrc)
+predictRF
+```
+
+
